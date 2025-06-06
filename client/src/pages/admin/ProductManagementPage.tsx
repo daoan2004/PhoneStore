@@ -24,6 +24,7 @@ import {
   InputLabel,
   SelectChangeEvent,
   Box,
+  Alert,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -39,9 +40,6 @@ import {
   Product,
 } from '../../features/products/productSlice';
 import { getCategories } from '../../features/categories/categorySlice';
-import { styled } from '@mui/material/styles';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
-import axios from 'axios';
 
 interface Category {
   _id: string;
@@ -53,23 +51,11 @@ interface ProductFormData {
   description: string;
   price: number;
   brand: string;
-  stock: number;
+  countInStock: number;
   category: string;
   isFeatured: boolean;
   image: string;
 }
-
-const VisuallyHiddenInput = styled('input')({
-  clip: 'rect(0 0 0 0)',
-  clipPath: 'inset(50%)',
-  height: 1,
-  overflow: 'hidden',
-  position: 'absolute',
-  bottom: 0,
-  left: 0,
-  whiteSpace: 'nowrap',
-  width: 1,
-});
 
 const ProductManagementPage: React.FC = () => {
   const dispatch = useAppDispatch();
@@ -83,13 +69,11 @@ const ProductManagementPage: React.FC = () => {
     description: '',
     price: 0,
     brand: '',
-    stock: 0,
+    countInStock: 0,
     category: '',
     isFeatured: false,
     image: '',
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>('');
 
   useEffect(() => {
     dispatch(getProducts());
@@ -104,7 +88,7 @@ const ProductManagementPage: React.FC = () => {
       description: '',
       price: 0,
       brand: '',
-      stock: 0,
+      countInStock: 0,
       category: '',
       isFeatured: false,
       image: '',
@@ -124,7 +108,7 @@ const ProductManagementPage: React.FC = () => {
       description: product.description,
       price: product.price,
       brand: product.brand,
-      stock: product.stock,
+      countInStock: product.countInStock,
       category: product.category._id,
       isFeatured: product.isFeatured,
       image: product.image,
@@ -138,50 +122,45 @@ const ProductManagementPage: React.FC = () => {
     }
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (event.target.files && event.target.files[0]) {
-      const file = event.target.files[0];
-      setImageFile(file);
-      setImagePreview(URL.createObjectURL(file));
-      setFormData(prev => ({
-        ...prev,
-        image: URL.createObjectURL(file)
-      }));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    let imageUrl = formData.image;
-    
-    if (imageFile) {
-      // Create FormData for image upload
-      const imageData = new FormData();
-      imageData.append('image', imageFile);
-      
-      try {
-        // Upload image first
-        const uploadResponse = await axios.post('/api/upload', imageData);
-        imageUrl = uploadResponse.data.url;
-      } catch (error) {
-        console.error('Error uploading image:', error);
-        return;
-      }
+
+    // Validate numeric fields
+    if (formData.price < 0) {
+      alert('Price cannot be negative');
+      return;
+    }
+
+    if (formData.countInStock < 0) {
+      alert('Stock cannot be negative');
+      return;
+    }
+
+    // Find the selected category object
+    const selectedCategory = categories.find(cat => cat._id === formData.category);
+    if (!selectedCategory) {
+      alert('Please select a valid category');
+      return;
     }
 
     const productData: Partial<Product> = {
       ...formData,
-      image: imageUrl,
-      category: { _id: formData.category } as Category,
+      category: {
+        _id: selectedCategory._id,
+        name: selectedCategory.name
+      }
     };
     
-    if (isEdit && selectedProduct) {
-      dispatch(updateProduct({ id: selectedProduct._id, productData }));
-    } else {
-      dispatch(createProduct(productData));
+    try {
+      if (isEdit && selectedProduct) {
+        await dispatch(updateProduct({ id: selectedProduct._id, productData })).unwrap();
+      } else {
+        await dispatch(createProduct(productData)).unwrap();
+      }
+      handleClose();
+    } catch (error: any) {
+      alert(error.message || 'Failed to save product');
     }
-    handleClose();
   };
 
   const handleInputChange = (
@@ -199,64 +178,72 @@ const ProductManagementPage: React.FC = () => {
   };
 
   if (loading) {
-    return <Typography>Loading...</Typography>;
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Typography>Loading...</Typography>
+      </Container>
+    );
   }
 
   if (error) {
-    return <Typography color="error">{error}</Typography>;
+    return (
+      <Container maxWidth="lg" sx={{ mt: 4 }}>
+        <Alert severity="error">{error}</Alert>
+      </Container>
+    );
   }
 
   return (
     <Container maxWidth="lg" sx={{ mt: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
         <Typography variant="h4" component="h1">
           Product Management
         </Typography>
-                <Button
-                  variant="contained"
-                  color="primary"
+        <Button
+          variant="contained"
+          color="primary"
           startIcon={<AddIcon />}
           onClick={handleClickOpen}
-                >
+        >
           Add Product
-                </Button>
-      </div>
+        </Button>
+      </Box>
 
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Brand</TableCell>
-                <TableCell>Category</TableCell>
-                <TableCell>Price</TableCell>
-                <TableCell>Stock</TableCell>
-                <TableCell>Featured</TableCell>
-                <TableCell>Actions</TableCell>
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Brand</TableCell>
+              <TableCell>Category</TableCell>
+              <TableCell>Price</TableCell>
+              <TableCell>Stock</TableCell>
+              <TableCell>Featured</TableCell>
+              <TableCell>Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {products.map((product) => (
+              <TableRow key={product._id}>
+                <TableCell>{product.name}</TableCell>
+                <TableCell>{product.brand}</TableCell>
+                <TableCell>{product.category.name}</TableCell>
+                <TableCell>${product.price.toFixed(2)}</TableCell>
+                <TableCell>{product.countInStock}</TableCell>
+                <TableCell>{product.isFeatured ? 'Yes' : 'No'}</TableCell>
+                <TableCell>
+                  <IconButton onClick={() => handleEdit(product)} color="primary">
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton onClick={() => handleDelete(product._id)} color="error">
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {products.map((product) => (
-                <TableRow key={product._id}>
-                  <TableCell>{product.name}</TableCell>
-                  <TableCell>{product.brand}</TableCell>
-                  <TableCell>{product.category.name}</TableCell>
-                  <TableCell>${product.price}</TableCell>
-                  <TableCell>{product.stock}</TableCell>
-                  <TableCell>{product.isFeatured ? 'Yes' : 'No'}</TableCell>
-                  <TableCell>
-                    <IconButton onClick={() => handleEdit(product)} color="primary">
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton onClick={() => handleDelete(product._id)} color="error">
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
 
       <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
         <DialogTitle>{isEdit ? 'Edit Product' : 'Add Product'}</DialogTitle>
@@ -291,6 +278,7 @@ const ProductManagementPage: React.FC = () => {
               value={formData.price}
               onChange={handleInputChange}
               required
+              inputProps={{ min: 0, step: 0.01 }}
             />
             <TextField
               margin="dense"
@@ -303,11 +291,21 @@ const ProductManagementPage: React.FC = () => {
             />
             <TextField
               margin="dense"
-              name="stock"
+              name="countInStock"
               label="Stock"
               type="number"
               fullWidth
-              value={formData.stock}
+              value={formData.countInStock}
+              onChange={handleInputChange}
+              required
+              inputProps={{ min: 0, step: 1 }}
+            />
+            <TextField
+              margin="dense"
+              name="image"
+              label="Image URL"
+              fullWidth
+              value={formData.image}
               onChange={handleInputChange}
               required
             />
@@ -336,30 +334,6 @@ const ProductManagementPage: React.FC = () => {
               }
               label="Featured Product"
             />
-            <Box sx={{ mt: 2, mb: 2 }}>
-              <Button
-                component="label"
-                variant="contained"
-                startIcon={<CloudUploadIcon />}
-                sx={{ mb: 1 }}
-              >
-                Upload Image
-                <VisuallyHiddenInput
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageChange}
-                />
-              </Button>
-              {imagePreview && (
-                <Box sx={{ mt: 2 }}>
-                  <img
-                    src={imagePreview}
-                    alt="Preview"
-                    style={{ maxWidth: '100%', maxHeight: '200px' }}
-                  />
-                </Box>
-              )}
-            </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
@@ -368,7 +342,7 @@ const ProductManagementPage: React.FC = () => {
             </Button>
           </DialogActions>
         </form>
-        </Dialog>
+      </Dialog>
     </Container>
   );
 };

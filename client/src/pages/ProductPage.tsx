@@ -130,8 +130,8 @@ const ProductPage: React.FC = () => {
                 variant="outlined"
               />
               <Chip
-                label={`${product.stock} in stock`}
-                color={product.stock > 0 ? 'success' : 'error'}
+                label={`${product.countInStock} in stock`}
+                color={product.countInStock > 0 ? 'success' : 'error'}
                 variant="outlined"
               />
               {product.isFeatured && (
@@ -145,11 +145,11 @@ const ProductPage: React.FC = () => {
               size="large"
               startIcon={<CartIcon />}
               onClick={handleAddToCart}
-              disabled={product.stock === 0}
+              disabled={product.countInStock === 0}
               fullWidth
               sx={{ mb: 2 }}
             >
-              {product.stock === 0 ? 'Out of Stock' : 'Add to Cart'}
+              {product.countInStock === 0 ? 'Out of Stock' : 'Add to Cart'}
             </Button>
 
             {user && (

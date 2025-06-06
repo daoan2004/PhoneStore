@@ -95,7 +95,7 @@ const DashboardPage: React.FC = () => {
   ];
 
   const lowStockProducts = products
-    .filter((product) => product.stock < 10)
+    .filter((product) => product.countInStock < 10)
     .slice(0, 5);
 
   if (loading) {
@@ -244,7 +244,7 @@ const DashboardPage: React.FC = () => {
                     lowStockProducts.map((product) => (
                       <TableRow key={product._id}>
                         <TableCell>{product.name}</TableCell>
-                        <TableCell align="right">{product.stock}</TableCell>
+                        <TableCell align="right">{product.countInStock}</TableCell>
                       </TableRow>
                     ))
                   )}

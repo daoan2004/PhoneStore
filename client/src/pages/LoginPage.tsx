@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container,
@@ -20,7 +20,7 @@ import {
   Visibility as VisibilityIcon,
   VisibilityOff as VisibilityOffIcon,
 } from '@mui/icons-material';
-import { useAppDispatch } from '../app/hooks';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { login } from '../features/auth/authSlice';
 
 const LoginPage: React.FC = () => {
@@ -28,20 +28,30 @@ const LoginPage: React.FC = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { user, token } = useAppSelector((state) => state.auth);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (user && token) {
+      navigate('/', { replace: true });
+    }
+  }, [user, token, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
     try {
-      await dispatch(login({ email, password })).unwrap();
-      navigate('/');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed');
+      const result = await dispatch(login({ email, password })).unwrap();
+      if (!result) {
+        setError('Login failed. Please try again.');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError(typeof err === 'string' ? err : 'Login failed. Please try again.');
     }
   };
 

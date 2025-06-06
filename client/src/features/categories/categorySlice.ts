@@ -1,5 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import api from '../../app/api';
+import api from '../../services/api';
 
 interface Category {
   _id: string;
@@ -28,7 +28,7 @@ const initialState: CategoryState = {
 // Get all categories
 export const getCategories = createAsyncThunk('categories/getAll', async (_, { rejectWithValue }) => {
   try {
-    const { data } = await api.get('/api/categories');
+    const { data } = await api.get('/categories');
     return data;
   } catch (error: any) {
     return rejectWithValue(error.response?.data?.message || 'Failed to fetch categories');
@@ -40,7 +40,7 @@ export const createCategory = createAsyncThunk(
   'categories/create',
   async (categoryData: { name: string; description: string; image?: string }, { rejectWithValue }) => {
     try {
-      const { data } = await api.post('/api/categories', categoryData);
+      const { data } = await api.post('/categories', categoryData);
       return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to create category');
@@ -56,7 +56,7 @@ export const updateCategory = createAsyncThunk(
     { rejectWithValue }
   ) => {
     try {
-      const { data } = await api.put(`/api/categories/${id}`, categoryData);
+      const { data } = await api.put(`/categories/${id}`, categoryData);
       return data;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to update category');
@@ -69,7 +69,7 @@ export const deleteCategory = createAsyncThunk(
   'categories/delete',
   async (id: string, { rejectWithValue }) => {
     try {
-      await api.delete(`/api/categories/${id}`);
+      await api.delete(`/categories/${id}`);
       return id;
     } catch (error: any) {
       return rejectWithValue(error.response?.data?.message || 'Failed to delete category');

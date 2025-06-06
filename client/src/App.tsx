@@ -1,51 +1,73 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { store } from './app/store';
+import { setLogoutHandler } from './services/api';
+import { logout, initializeAuth } from './features/auth/authSlice';
 import theme from './theme';
 import Header from './components/Header';
+import Footer from './components/Footer';
+import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import HomePage from './pages/HomePage';
-import ProductsPage from './pages/ProductsPage';
+import ProductPage from './pages/ProductPage';
 import CartPage from './pages/CartPage';
-import CategoryManagementPage from './pages/admin/CategoryManagementPage';
-import ProductManagementPage from './pages/admin/ProductManagementPage';
-import ProtectedRoute from './components/ProtectedRoute';
+import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
 import CheckoutPage from './pages/CheckoutPage';
+import OrderPage from './pages/OrderPage';
+import OrderHistoryPage from './pages/OrderHistoryPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { Box, CircularProgress } from '@mui/material';
+import { useAppDispatch } from './app/hooks';
 
-const App: React.FC = () => {
+// Separate component to use hooks
+const AppContent = () => {
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    // Set up logout handler for API service
+    setLogoutHandler(() => {
+      dispatch(logout());
+    });
+
+    // Initialize auth state
+    dispatch(initializeAuth());
+  }, [dispatch]);
+
   return (
-    <Provider store={store}>
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Router>
-          <Header />
+    <Router>
+      <div className="flex flex-col min-h-screen">
+        <Header />
+        <main className="flex-grow container mx-auto px-4 py-8">
           <Routes>
-            {/* Test route không cần authentication */}
-            <Route path="/test" element={<div>Test Page</div>} />
-            
-            <Route path="/" element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
+            <Route path="/" element={<HomePage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
-            <Route path="/products" element={<ProtectedRoute><ProductsPage /></ProtectedRoute>} />
-            <Route path="/cart" element={<ProtectedRoute><CartPage /></ProtectedRoute>} />
+            <Route path="/product/:id" element={<ProductPage />} />
             <Route
-              path="/admin/categories"
+              path="/cart"
               element={
-                <ProtectedRoute adminOnly>
-                  <CategoryManagementPage />
+                <ProtectedRoute>
+                  <CartPage />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/admin/products"
+              path="/checkout"
+              element={
+                <ProtectedRoute>
+                  <CheckoutPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/*"
               element={
                 <ProtectedRoute adminOnly>
-                  <ProductManagementPage />
+                  <AdminPage />
                 </ProtectedRoute>
               }
             />
@@ -58,15 +80,36 @@ const App: React.FC = () => {
               }
             />
             <Route
-              path="/checkout"
+              path="/order/:id"
               element={
                 <ProtectedRoute>
-                  <CheckoutPage />
+                  <OrderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/orders"
+              element={
+                <ProtectedRoute>
+                  <OrderHistoryPage />
                 </ProtectedRoute>
               }
             />
           </Routes>
-        </Router>
+        </main>
+        <Footer />
+      </div>
+    </Router>
+  );
+};
+
+// Root component that provides context
+const App = () => {
+  return (
+    <Provider store={store}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <AppContent />
       </ThemeProvider>
     </Provider>
   );

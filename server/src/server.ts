@@ -1,12 +1,14 @@
 import express from 'express';
 import path from 'path';
 import dotenv from 'dotenv';
+import cors from 'cors';
 import connectDB from './config/db';
 import productRoutes from './routes/productRoutes';
 import categoryRoutes from './routes/categoryRoutes';
-import userRoutes from './routes/userRoutes';
+import userRoutes from './routes/authRoutes';
 import orderRoutes from './routes/orderRoutes';
-import uploadRoutes from './routes/uploadRoutes';
+import reviewRoutes from './routes/reviewRoutes';
+import adminRoutes from './routes/adminRoutes';
 import { errorHandler, notFound } from './middleware/errorMiddleware';
 
 dotenv.config();
@@ -14,18 +16,23 @@ connectDB();
 
 const app = express();
 
-app.use(express.json());
+// CORS configuration
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
 
-// Make uploads folder static
-app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+app.use(express.json());
 
 // Routes
 app.use('/api/products', productRoutes);
 app.use('/api/categories', categoryRoutes);
-app.use('/api/users', userRoutes);
+app.use('/api/auth', userRoutes);
 app.use('/api/orders', orderRoutes);
-app.use('/api/upload', uploadRoutes);
+app.use('/api/reviews', reviewRoutes);
+app.use('/api/admin', adminRoutes);
 
+// Error handling
 app.use(notFound);
 app.use(errorHandler);
 

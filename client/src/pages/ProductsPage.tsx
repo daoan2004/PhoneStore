@@ -308,7 +308,7 @@ const ProductsPage: React.FC = () => {
                             size="small"
                             sx={{ backgroundColor: 'primary.light', color: 'primary.main' }}
                           />
-                          {product.stock > 0 ? (
+                          {product.countInStock > 0 ? (
                             <Chip
                               label="In Stock"
                               size="small"
@@ -327,7 +327,7 @@ const ProductsPage: React.FC = () => {
                           color="primary"
                           sx={{ mt: 2, fontWeight: 600 }}
                         >
-                          ${product.price}
+                          ${product.price.toFixed(2)}
                         </Typography>
                       </CardContent>
                       <CardActions sx={{ p: 2, pt: 0 }}>
@@ -343,7 +343,7 @@ const ProductsPage: React.FC = () => {
                           variant="contained"
                           startIcon={<CartIcon />}
                           onClick={() => handleAddToCart(product)}
-                          disabled={product.stock === 0}
+                          disabled={product.countInStock === 0}
                           sx={{ ml: 'auto' }}
                         >
                           Add to Cart
