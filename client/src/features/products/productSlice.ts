@@ -1,25 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import api from '../../services/api';
-
-export interface Product {
-  _id: string;
-  name: string;
-  slug: string;
-  description: string;
-  price: number;
-  image: string;
-  brand: string;
-  category: {
-    _id: string;
-    name: string;
-  };
-  countInStock: number;
-  rating: number;
-  numReviews: number;
-  isFeatured: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
+import { Product } from '../../types';
 
 interface ProductState {
   products: Product[];

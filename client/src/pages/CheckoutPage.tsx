@@ -1,286 +1,345 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Container,
-  Paper,
-  Typography,
-  TextField,
-  Button,
   Grid,
+  Typography,
+  Button,
   Box,
+  Card,
+  CardContent,
+  TextField,
   Stepper,
   Step,
   StepLabel,
+  Divider,
   Radio,
   RadioGroup,
   FormControlLabel,
   FormControl,
   FormLabel,
-  Divider,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemAvatar,
-  Avatar,
   Alert,
+  useTheme,
+  useMediaQuery,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import {
+  ShoppingCart as CartIcon,
+  LocalShipping as ShippingIcon,
+  Payment as PaymentIcon,
+  CheckCircle as CheckCircleIcon,
+} from '@mui/icons-material';
 import { useAppSelector, useAppDispatch } from '../app/hooks';
 import { clearCart } from '../features/cart/cartSlice';
 
-const steps = ['Shipping Information', 'Payment Method', 'Review Order'];
+const steps = ['Cart Review', 'Shipping', 'Payment', 'Confirmation'];
 
 const CheckoutPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
-  const { items } = useAppSelector((state) => state.cart);
+  const { items: cartItems } = useAppSelector((state) => state.cart);
   const [activeStep, setActiveStep] = useState(0);
-  const [shippingData, setShippingData] = useState({
-    fullName: '',
+  const [shippingInfo, setShippingInfo] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
     address: '',
     city: '',
-    postalCode: '',
-    phone: '',
+    state: '',
+    zipCode: '',
   });
-  const [paymentMethod, setPaymentMethod] = useState('cod');
-  const [error, setError] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('credit');
 
   const handleNext = () => {
-    if (activeStep === 0 && !validateShippingForm()) {
-      setError('Please fill in all required fields');
-      return;
+    if (activeStep === steps.length - 1) {
+      // Place order
+      dispatch(clearCart());
+      navigate('/order-success');
+    } else {
+      setActiveStep((prevStep) => prevStep + 1);
     }
-    setError('');
-    setActiveStep((prevStep) => prevStep + 1);
   };
 
   const handleBack = () => {
-    setActiveStep((prevStep) => prevStep - 1);
-  };
-
-  const validateShippingForm = () => {
-    return Object.values(shippingData).every(value => value.trim() !== '');
-  };
-
-  const handleShippingInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setShippingData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handlePaymentMethodChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setPaymentMethod(e.target.value);
-  };
-
-  const calculateTotal = () => {
-    return items.reduce((total, item) => total + item.price * item.quantity, 0);
-  };
-
-  const handlePlaceOrder = async () => {
-    try {
-      // Here you would typically:
-      // 1. Send order to your backend
-      // 2. Process payment if not COD
-      // 3. Clear cart and redirect to success page
-      
-      dispatch(clearCart());
-      navigate('/order-success');
-    } catch (err) {
-      setError('Failed to place order. Please try again.');
+    if (activeStep === 0) {
+      navigate('/cart');
+    } else {
+      setActiveStep((prevStep) => prevStep - 1);
     }
   };
 
-  const renderShippingForm = () => (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <TextField
-          required
-          fullWidth
-          label="Full Name"
-          name="fullName"
-          value={shippingData.fullName}
-          onChange={handleShippingInputChange}
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          required
-          fullWidth
-          label="Address"
-          name="address"
-          value={shippingData.address}
-          onChange={handleShippingInputChange}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          required
-          fullWidth
-          label="City"
-          name="city"
-          value={shippingData.city}
-          onChange={handleShippingInputChange}
-        />
-      </Grid>
-      <Grid item xs={12} sm={6}>
-        <TextField
-          required
-          fullWidth
-          label="Postal Code"
-          name="postalCode"
-          value={shippingData.postalCode}
-          onChange={handleShippingInputChange}
-        />
-      </Grid>
-      <Grid item xs={12}>
-        <TextField
-          required
-          fullWidth
-          label="Phone Number"
-          name="phone"
-          value={shippingData.phone}
-          onChange={handleShippingInputChange}
-        />
-      </Grid>
-    </Grid>
-  );
+  const handleShippingInfoChange = (field: string) => (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    setShippingInfo((prev) => ({
+      ...prev,
+      [field]: event.target.value,
+    }));
+  };
 
-  const renderPaymentMethod = () => (
-    <FormControl component="fieldset">
-      <FormLabel component="legend">Payment Method</FormLabel>
-      <RadioGroup
-        value={paymentMethod}
-        onChange={handlePaymentMethodChange}
-      >
-        <FormControlLabel
-          value="cod"
-          control={<Radio />}
-          label="Cash on Delivery"
-        />
-        <FormControlLabel
-          value="card"
-          control={<Radio />}
-          label="Credit/Debit Card"
-        />
-        <FormControlLabel
-          value="momo"
-          control={<Radio />}
-          label="MoMo"
-        />
-      </RadioGroup>
-    </FormControl>
-  );
+  const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
+  const shipping = subtotal > 100 ? 0 : 10;
+  const tax = subtotal * 0.1; // 10% tax
+  const total = subtotal + shipping + tax;
 
-  const renderOrderSummary = () => (
-    <Box>
-      <List>
-        {items.map((item) => (
-          <ListItem key={item._id}>
-            <ListItemAvatar>
-              <Avatar src={item.image} />
-            </ListItemAvatar>
-            <ListItemText
-              primary={item.name}
-              secondary={`Quantity: ${item.quantity}`}
-            />
-            <Typography variant="body1">
-              ${(item.price * item.quantity).toFixed(2)}
-            </Typography>
-          </ListItem>
-        ))}
-      </List>
-      <Divider sx={{ my: 2 }} />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
-        <Typography variant="h6">Total:</Typography>
-        <Typography variant="h6">${calculateTotal().toFixed(2)}</Typography>
-      </Box>
-      <Box sx={{ mb: 2 }}>
-        <Typography variant="h6">Shipping Address:</Typography>
-        <Typography>
-          {shippingData.fullName}<br />
-          {shippingData.address}<br />
-          {shippingData.city}, {shippingData.postalCode}<br />
-          Phone: {shippingData.phone}
-        </Typography>
-      </Box>
-      <Box>
-        <Typography variant="h6">Payment Method:</Typography>
-        <Typography>
-          {paymentMethod === 'cod' && 'Cash on Delivery'}
-          {paymentMethod === 'card' && 'Credit/Debit Card'}
-          {paymentMethod === 'momo' && 'MoMo'}
-        </Typography>
-      </Box>
-    </Box>
-  );
+  const isShippingFormValid = () => {
+    return Object.values(shippingInfo).every((value) => value.trim() !== '');
+  };
 
   const getStepContent = (step: number) => {
     switch (step) {
       case 0:
-        return renderShippingForm();
+        return (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Order Summary
+            </Typography>
+            {cartItems.map((item) => (
+              <Box key={item._id} sx={{ display: 'flex', gap: 2, mb: 2 }}>
+                <Box
+                  component="img"
+                  src={item.image}
+                  alt={item.name}
+                  sx={{
+                    width: 80,
+                    height: 80,
+                    objectFit: 'contain',
+                    borderRadius: 1,
+                    backgroundColor: 'background.paper',
+                    p: 1,
+                  }}
+                />
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="subtitle1">{item.name}</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Quantity: {item.quantity}
+                  </Typography>
+                  <Typography variant="subtitle2" color="primary">
+                    ${(item.price * item.quantity).toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+            ))}
+          </Box>
+        );
+
       case 1:
-        return renderPaymentMethod();
+        return (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Shipping Information
+            </Typography>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="First Name"
+                  value={shippingInfo.firstName}
+                  onChange={handleShippingInfoChange('firstName')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Last Name"
+                  value={shippingInfo.lastName}
+                  onChange={handleShippingInfoChange('lastName')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Email"
+                  type="email"
+                  value={shippingInfo.email}
+                  onChange={handleShippingInfoChange('email')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="Phone"
+                  value={shippingInfo.phone}
+                  onChange={handleShippingInfoChange('phone')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Address"
+                  value={shippingInfo.address}
+                  onChange={handleShippingInfoChange('address')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
+                  label="City"
+                  value={shippingInfo.city}
+                  onChange={handleShippingInfoChange('city')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="State"
+                  value={shippingInfo.state}
+                  onChange={handleShippingInfoChange('state')}
+                  required
+                />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <TextField
+                  fullWidth
+                  label="ZIP Code"
+                  value={shippingInfo.zipCode}
+                  onChange={handleShippingInfoChange('zipCode')}
+                  required
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
       case 2:
-        return renderOrderSummary();
+        return (
+          <Box>
+            <Typography variant="h6" gutterBottom>
+              Payment Method
+            </Typography>
+            <FormControl component="fieldset">
+              <FormLabel component="legend">Select a payment method</FormLabel>
+              <RadioGroup
+                value={paymentMethod}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+              >
+                <FormControlLabel
+                  value="credit"
+                  control={<Radio />}
+                  label="Credit Card"
+                />
+                <FormControlLabel
+                  value="debit"
+                  control={<Radio />}
+                  label="Debit Card"
+                />
+                <FormControlLabel
+                  value="paypal"
+                  control={<Radio />}
+                  label="PayPal"
+                />
+              </RadioGroup>
+            </FormControl>
+            {paymentMethod === 'credit' && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Credit card payment will be implemented in the next phase.
+              </Alert>
+            )}
+          </Box>
+        );
+
+      case 3:
+        return (
+          <Box sx={{ textAlign: 'center' }}>
+            <CheckCircleIcon
+              sx={{ fontSize: 60, color: 'success.main', mb: 2 }}
+            />
+            <Typography variant="h5" gutterBottom>
+              Thank you for your order!
+            </Typography>
+            <Typography color="text.secondary">
+              Your order has been placed successfully. We'll send you an email
+              confirmation shortly.
+            </Typography>
+          </Box>
+        );
+
       default:
-        return 'Unknown step';
+        return null;
     }
   };
 
-  if (items.length === 0) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Alert severity="info">
-          Your cart is empty. Please add some items before checkout.
-        </Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          Checkout
-        </Typography>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
+      <Stepper
+        activeStep={activeStep}
+        alternativeLabel={!isMobile}
+        orientation={isMobile ? 'vertical' : 'horizontal'}
+        sx={{ mb: 4 }}
+      >
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
 
-        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-          {steps.map((label) => (
-            <Step key={label}>
-              <StepLabel>{label}</StepLabel>
-            </Step>
-          ))}
-        </Stepper>
+      <Grid container spacing={4}>
+        <Grid item xs={12} md={8}>
+          <Card variant="outlined">
+            <CardContent>{getStepContent(activeStep)}</CardContent>
+          </Card>
+        </Grid>
 
-        {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
+        <Grid item xs={12} md={4}>
+          <Card variant="outlined">
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Order Summary
+              </Typography>
+              <Box sx={{ mt: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography color="text.secondary">Subtotal</Typography>
+                  <Typography>${subtotal.toFixed(2)}</Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography color="text.secondary">Shipping</Typography>
+                  <Typography>
+                    {shipping === 0 ? 'Free' : `$${shipping.toFixed(2)}`}
+                  </Typography>
+                </Box>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
+                  <Typography color="text.secondary">Tax (10%)</Typography>
+                  <Typography>${tax.toFixed(2)}</Typography>
+                </Box>
+                <Divider sx={{ my: 2 }} />
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Typography variant="h6">Total</Typography>
+                  <Typography variant="h6" color="primary">
+                    ${total.toFixed(2)}
+                  </Typography>
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
 
-        {getStepContent(activeStep)}
-
-        <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-          {activeStep !== 0 && (
-            <Button onClick={handleBack} sx={{ mr: 1 }}>
-              Back
-            </Button>
-          )}
-          {activeStep === steps.length - 1 ? (
+          <Box sx={{ mt: 2, display: 'flex', gap: 2 }}>
             <Button
-              variant="contained"
-              color="primary"
-              onClick={handlePlaceOrder}
+              variant="outlined"
+              onClick={handleBack}
+              fullWidth
             >
-              Place Order
+              {activeStep === 0 ? 'Back to Cart' : 'Back'}
             </Button>
-          ) : (
             <Button
               variant="contained"
               onClick={handleNext}
+              fullWidth
+              disabled={activeStep === 1 && !isShippingFormValid()}
             >
-              Next
+              {activeStep === steps.length - 1 ? 'Place Order' : 'Next'}
             </Button>
-          )}
-        </Box>
-      </Paper>
+          </Box>
+        </Grid>
+      </Grid>
     </Container>
   );
 };

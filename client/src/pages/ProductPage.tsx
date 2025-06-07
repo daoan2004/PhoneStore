@@ -1,198 +1,329 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import {
   Container,
   Grid,
   Typography,
-  Box,
   Button,
+  Box,
   Rating,
-  Divider,
-  Paper,
   Chip,
+  TextField,
+  Card,
+  CardContent,
+  Divider,
   IconButton,
+  Skeleton,
+  useTheme,
+  useMediaQuery,
+  Tabs,
+  Tab,
   Alert,
+  Snackbar,
 } from '@mui/material';
 import {
-  AddShoppingCart as CartIcon,
-  Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon,
+  Add as AddIcon,
+  Remove as RemoveIcon,
+  ShoppingCart as CartIcon,
+  LocalShipping as LocalShippingIcon,
+  Security as SecurityIcon,
+  SupportAgent as SupportAgentIcon,
+  Refresh as RefreshIcon,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
 import { getProductById } from '../features/products/productSlice';
 import { addToCart } from '../features/cart/cartSlice';
-import ReviewForm from '../components/ReviewForm';
-import ReviewList from '../components/ReviewList';
-import { getReviews } from '../features/reviews/reviewSlice';
+import { Product, Review } from '../types';
+
+interface TabPanelProps {
+  children?: React.ReactNode;
+  index: number;
+  value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+  const { children, value, index, ...other } = props;
+
+  return (
+    <div
+      role="tabpanel"
+      hidden={value !== index}
+      id={`product-tabpanel-${index}`}
+      aria-labelledby={`product-tab-${index}`}
+      {...other}
+    >
+      {value === index && <Box sx={{ py: 3 }}>{children}</Box>}
+    </div>
+  );
+}
 
 const ProductPage: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { id } = useParams<{ id: string }>();
   const dispatch = useAppDispatch();
-  const { product, loading: productLoading } = useAppSelector((state) => state.products);
-  const { reviews } = useAppSelector((state) => state.reviews);
-  const { user } = useAppSelector((state) => state.auth);
-  const [reviewDialogOpen, setReviewDialogOpen] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(false);
+  const navigate = useNavigate();
+  const { product, loading, error } = useAppSelector((state) => state.products);
+  const [quantity, setQuantity] = useState(1);
+  const [tabValue, setTabValue] = useState(0);
 
   useEffect(() => {
     if (id) {
       dispatch(getProductById(id));
-      dispatch(getReviews());
     }
   }, [dispatch, id]);
 
-  const handleAddToCart = () => {
-    if (product) {
-      dispatch(addToCart({ ...product, quantity: 1 }));
+  const handleQuantityChange = (value: number) => {
+    if (value >= 1 && value <= (product?.countInStock || 0)) {
+      setQuantity(value);
     }
   };
 
-  const handleToggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    // TODO: Implement favorite functionality
+  const handleAddToCart = () => {
+    if (product) {
+      dispatch(addToCart({ ...product, quantity }));
+      navigate('/cart');
+    }
   };
 
-  const productReviews = reviews.filter((review) => review.product._id === id);
-  const averageRating =
-    productReviews.length > 0
-      ? (
-          productReviews.reduce((acc, review) => acc + review.rating, 0) /
-          productReviews.length
-        ).toFixed(1)
-      : 0;
+  const features = [
+    {
+      icon: <LocalShippingIcon sx={{ fontSize: 40 }} />,
+      title: 'Free Shipping',
+      description: 'On orders over $100',
+    },
+    {
+      icon: <SecurityIcon sx={{ fontSize: 40 }} />,
+      title: 'Secure Payment',
+      description: '100% secure payment',
+    },
+    {
+      icon: <SupportAgentIcon sx={{ fontSize: 40 }} />,
+      title: '24/7 Support',
+      description: 'Dedicated support',
+    },
+  ];
 
-  if (productLoading || !product) {
+  if (error) {
     return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Typography>Loading...</Typography>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
+        <Alert severity="error">{error}</Alert>
       </Container>
     );
   }
 
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Grid container spacing={4}>
         {/* Product Image */}
         <Grid item xs={12} md={6}>
-          <Paper
-            elevation={2}
-            sx={{
-              p: 2,
-              height: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <img
-              src={product.image}
-              alt={product.name}
-              style={{ maxWidth: '100%', maxHeight: '400px', objectFit: 'contain' }}
+          {loading ? (
+            <Skeleton variant="rectangular" height={400} />
+          ) : (
+            <Box
+              component="img"
+              src={product?.image}
+              alt={product?.name}
+              sx={{
+                width: '100%',
+                height: 'auto',
+                maxHeight: 500,
+                objectFit: 'contain',
+                borderRadius: 2,
+                backgroundColor: 'white',
+                p: 4,
+              }}
             />
-          </Paper>
+          )}
         </Grid>
 
         {/* Product Details */}
         <Grid item xs={12} md={6}>
-          <Box>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <Typography variant="h4" component="h1" gutterBottom>
-                {product.name}
+          {loading ? (
+            <>
+              <Skeleton variant="text" height={60} />
+              <Skeleton variant="text" width="60%" />
+              <Skeleton variant="text" width="40%" />
+            </>
+          ) : (
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                {product?.name}
               </Typography>
-              <IconButton
-                onClick={handleToggleFavorite}
-                color="primary"
-                sx={{ '&:hover': { transform: 'scale(1.1)' } }}
-              >
-                {isFavorite ? <FavoriteIcon /> : <FavoriteBorderIcon />}
-              </IconButton>
-            </Box>
 
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-              <Rating value={Number(averageRating)} precision={0.5} readOnly />
-              <Typography color="text.secondary">
-                ({productReviews.length} reviews)
+              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                <Chip
+                  label={product?.brand}
+                  size="small"
+                  sx={{ backgroundColor: theme.palette.primary.light, color: 'white' }}
+                />
+                <Chip
+                  label={product?.countInStock ? 'In Stock' : 'Out of Stock'}
+                  size="small"
+                  color={product?.countInStock ? 'success' : 'error'}
+                />
+              </Box>
+
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Rating value={product?.rating || 0} precision={0.5} readOnly />
+                <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                  ({product?.numReviews} reviews)
+                </Typography>
+              </Box>
+
+              <Typography variant="h5" color="primary" sx={{ mb: 3 }}>
+                ${product?.price?.toFixed(2)}
               </Typography>
-            </Box>
 
-            <Typography variant="h5" color="primary" gutterBottom>
-              ${product.price.toFixed(2)}
-            </Typography>
+              <Box sx={{ mb: 3 }}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Quantity
+                </Typography>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleQuantityChange(quantity - 1)}
+                    disabled={quantity <= 1}
+                  >
+                    <RemoveIcon />
+                  </IconButton>
+                  <TextField
+                    type="number"
+                    value={quantity}
+                    onChange={(e) => handleQuantityChange(parseInt(e.target.value) || 1)}
+                    inputProps={{ min: 1, max: product?.countInStock }}
+                    sx={{ width: 80 }}
+                  />
+                  <IconButton
+                    size="small"
+                    onClick={() => handleQuantityChange(quantity + 1)}
+                    disabled={quantity >= (product?.countInStock || 0)}
+                  >
+                    <AddIcon />
+                  </IconButton>
+                  <Typography variant="body2" color="text.secondary" sx={{ ml: 2 }}>
+                    {product?.countInStock} items available
+                  </Typography>
+                </Box>
+              </Box>
 
-            <Typography variant="body1" color="text.secondary" paragraph>
-              {product.description}
-            </Typography>
-
-            <Box sx={{ display: 'flex', gap: 2, mb: 3 }}>
-              <Chip
-                label={product.category.name}
-                color="primary"
-                variant="outlined"
-              />
-              <Chip
-                label={`${product.countInStock} in stock`}
-                color={product.countInStock > 0 ? 'success' : 'error'}
-                variant="outlined"
-              />
-              {product.isFeatured && (
-                <Chip label="Featured" color="secondary" variant="outlined" />
-              )}
-            </Box>
-
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              startIcon={<CartIcon />}
-              onClick={handleAddToCart}
-              disabled={product.countInStock === 0}
-              fullWidth
-              sx={{ mb: 2 }}
-            >
-              {product.countInStock === 0 ? 'Out of Stock' : 'Add to Cart'}
-            </Button>
-
-            {user && (
               <Button
-                variant="outlined"
-                color="primary"
+                variant="contained"
                 size="large"
+                startIcon={<CartIcon />}
+                onClick={handleAddToCart}
+                disabled={!product?.countInStock}
                 fullWidth
-                onClick={() => setReviewDialogOpen(true)}
+                sx={{ mb: 3 }}
               >
-                Write a Review
+                Add to Cart
               </Button>
-            )}
-          </Box>
+
+              <Divider sx={{ my: 3 }} />
+
+              {/* Features */}
+              <Grid container spacing={2}>
+                {features.map((feature, index) => (
+                  <Grid item xs={12} sm={4} key={index}>
+                    <Card variant="outlined" sx={{ height: '100%' }}>
+                      <CardContent sx={{ textAlign: 'center' }}>
+                        <Box sx={{ color: 'primary.main', mb: 1 }}>{feature.icon}</Box>
+                        <Typography variant="subtitle1" gutterBottom>
+                          {feature.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary">
+                          {feature.description}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                ))}
+              </Grid>
+            </Box>
+          )}
         </Grid>
 
-        {/* Reviews Section */}
+        {/* Product Information Tabs */}
         <Grid item xs={12}>
-          <Box sx={{ mt: 4 }}>
-            <Typography variant="h5" gutterBottom>
-              Customer Reviews
-            </Typography>
-            <Divider sx={{ mb: 3 }} />
-
-            {!user && (
-              <Alert severity="info" sx={{ mb: 3 }}>
-                Please log in to write a review
-              </Alert>
-            )}
-
-            {product && (
-              <ReviewList productId={id || ''} reviews={productReviews} />
-            )}
+          <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+            <Tabs
+              value={tabValue}
+              onChange={(_, newValue) => setTabValue(newValue)}
+              variant={isMobile ? 'fullWidth' : 'standard'}
+            >
+              <Tab label="Description" />
+              <Tab label="Specifications" />
+              <Tab label="Reviews" />
+            </Tabs>
           </Box>
+
+          <TabPanel value={tabValue} index={0}>
+            <Typography variant="body1">{product?.description}</Typography>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={1}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Brand
+                </Typography>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  {product?.brand}
+                </Typography>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  Category
+                </Typography>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  {product?.category.name}
+                </Typography>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <Typography variant="subtitle1" gutterBottom>
+                  Model
+                </Typography>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  {product?.name}
+                </Typography>
+
+                <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
+                  Stock Status
+                </Typography>
+                <Typography variant="body1" color="text.secondary" gutterBottom>
+                  {product?.countInStock ? `${product.countInStock} units in stock` : 'Out of stock'}
+                </Typography>
+              </Grid>
+            </Grid>
+          </TabPanel>
+
+          <TabPanel value={tabValue} index={2}>
+            {(product as Product)?.reviews && (product as Product).reviews.length > 0 ? (
+              <Box>
+                {(product as Product).reviews.map((review: Review) => (
+                  <Box key={review._id} sx={{ mb: 3 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Typography variant="subtitle1" sx={{ mr: 2 }}>
+                        {review.name}
+                      </Typography>
+                      <Rating value={review.rating} readOnly size="small" />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {review.comment}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {new Date(review.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </Box>
+                ))}
+              </Box>
+            ) : (
+              <Typography variant="body1" color="text.secondary">
+                No reviews yet.
+              </Typography>
+            )}
+          </TabPanel>
         </Grid>
       </Grid>
-
-      {/* Review Dialog */}
-      <ReviewForm
-        productId={id || ''}
-        open={reviewDialogOpen}
-        onClose={() => setReviewDialogOpen(false)}
-      />
     </Container>
   );
 };

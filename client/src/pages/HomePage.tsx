@@ -1,139 +1,120 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
-  Typography,
-  Box,
-  Button,
   Grid,
   Card,
   CardContent,
   CardMedia,
+  Typography,
+  Button,
+  Box,
+  Chip,
+  Rating,
   useTheme,
   useMediaQuery,
-  Paper,
+  Skeleton,
 } from '@mui/material';
 import {
+  ShoppingCart as CartIcon,
   LocalShipping as ShippingIcon,
   Security as SecurityIcon,
   Support as SupportIcon,
-  CreditCard as PaymentIcon,
-  ArrowForward as ArrowForwardIcon,
 } from '@mui/icons-material';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { getProducts } from '../features/products/productSlice';
+import { addToCart } from '../features/cart/cartSlice';
 
 const HomePage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const { products, loading } = useAppSelector((state) => state.products);
+
+  useEffect(() => {
+    dispatch(getProducts());
+  }, [dispatch]);
+
+  const handleAddToCart = (product: any) => {
+    dispatch(addToCart({ ...product, quantity: 1 }));
+  };
+
+  const handleProductClick = (id: string) => {
+    navigate(`/product/${id}`);
+  };
 
   const features = [
     {
       icon: <ShippingIcon sx={{ fontSize: 40 }} />,
       title: 'Free Shipping',
-      description: 'Free shipping on all orders over $50',
+      description: 'On orders over $100',
     },
     {
       icon: <SecurityIcon sx={{ fontSize: 40 }} />,
-      title: 'Secure Payments',
-      description: '100% secure payment processing',
+      title: 'Secure Payment',
+      description: '100% secure payment',
     },
     {
       icon: <SupportIcon sx={{ fontSize: 40 }} />,
       title: '24/7 Support',
-      description: 'Dedicated support anytime',
-    },
-    {
-      icon: <PaymentIcon sx={{ fontSize: 40 }} />,
-      title: 'Easy Returns',
-      description: '30-day return policy',
+      description: 'Dedicated support',
     },
   ];
 
+  const featuredProducts = products.filter(product => product.isFeatured).slice(0, 4);
+  const newArrivals = [...products].sort((a, b) => 
+    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  ).slice(0, 4);
+
   return (
-    <Box>
+    <Box sx={{ backgroundColor: theme.palette.background.default, minHeight: '100vh' }}>
       {/* Hero Section */}
-      <Paper
+      <Box
         sx={{
-          position: 'relative',
-          backgroundColor: 'primary.main',
+          background: `linear-gradient(45deg, ${theme.palette.primary.main}, ${theme.palette.secondary.main})`,
           color: 'white',
-          mb: 4,
-          backgroundSize: 'cover',
-          backgroundRepeat: 'no-repeat',
-          backgroundPosition: 'center',
-          backgroundImage: 'url(https://source.unsplash.com/random?smartphone)',
-          minHeight: { xs: 300, md: 500 },
+          py: { xs: 8, md: 12 },
+          mb: 6,
         }}
       >
-        <Box
-          sx={{
-            position: 'absolute',
-            top: 0,
-            bottom: 0,
-            right: 0,
-            left: 0,
-            backgroundColor: 'rgba(0,0,0,.5)',
-          }}
-        />
-        <Container
-          maxWidth="lg"
-          sx={{
-            position: 'relative',
-            py: { xs: 4, md: 8 },
-            minHeight: { xs: 300, md: 500 },
-            display: 'flex',
-            flexDirection: 'column',
-            justifyContent: 'center',
-          }}
-        >
-          <Typography
-            component="h1"
-            variant="h2"
-            color="inherit"
-            gutterBottom
-            sx={{
-              fontSize: { xs: '2rem', md: '3.5rem' },
-              fontWeight: 700,
-              maxWidth: 600,
-            }}
-          >
-            Discover the Latest Smartphones
-          </Typography>
-          <Typography
-            variant="h5"
-            color="inherit"
-            paragraph
-            sx={{
-              maxWidth: 600,
-              mb: 4,
-              fontSize: { xs: '1rem', md: '1.5rem' },
-            }}
-          >
-            Explore our wide selection of premium phones from top brands
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            size="large"
-            onClick={() => navigate('/products')}
-            endIcon={<ArrowForwardIcon />}
-            sx={{
-              width: 'fit-content',
-              fontSize: { xs: '1rem', md: '1.2rem' },
-              py: { xs: 1, md: 1.5 },
-              px: { xs: 3, md: 4 },
-            }}
-          >
-            Shop Now
-          </Button>
+        <Container maxWidth="lg">
+          <Grid container spacing={4} alignItems="center">
+            <Grid item xs={12} md={6}>
+              <Typography variant="h1" gutterBottom>
+                Welcome to Phone Store
+              </Typography>
+              <Typography variant="h5" sx={{ mb: 4, opacity: 0.9 }}>
+                Discover the latest smartphones and accessories at great prices
+              </Typography>
+              <Button
+                variant="contained"
+                size="large"
+                color="secondary"
+                onClick={() => navigate('/products')}
+                sx={{
+                  px: 4,
+                  py: 1.5,
+                  fontSize: '1.1rem',
+                  backgroundColor: 'white',
+                  color: theme.palette.primary.main,
+                  '&:hover': {
+                    backgroundColor: theme.palette.grey[100],
+                  },
+                }}
+              >
+                Shop Now
+              </Button>
+            </Grid>
+          </Grid>
         </Container>
-      </Paper>
+      </Box>
 
       {/* Features Section */}
       <Container maxWidth="lg" sx={{ mb: 8 }}>
         <Grid container spacing={4}>
           {features.map((feature, index) => (
-            <Grid item xs={12} sm={6} md={3} key={index}>
+            <Grid item xs={12} md={4} key={index}>
               <Card
                 sx={{
                   height: '100%',
@@ -141,21 +122,13 @@ const HomePage: React.FC = () => {
                   flexDirection: 'column',
                   alignItems: 'center',
                   textAlign: 'center',
-                  p: 2,
+                  p: 3,
                 }}
-                elevation={0}
               >
                 <Box
                   sx={{
-                    width: 80,
-                    height: 80,
-                    borderRadius: '50%',
-                    backgroundColor: 'primary.light',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
+                    color: theme.palette.primary.main,
                     mb: 2,
-                    color: 'primary.main',
                   }}
                 >
                   {feature.icon}
@@ -172,82 +145,169 @@ const HomePage: React.FC = () => {
         </Grid>
       </Container>
 
-      {/* Categories Section */}
+      {/* Featured Products Section */}
       <Container maxWidth="lg" sx={{ mb: 8 }}>
-        <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600, mb: 4 }}>
-          Popular Categories
+        <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
+          Featured Products
         </Typography>
-        <Grid container spacing={4}>
-          {['Apple', 'Samsung', 'Google', 'OnePlus'].map((brand) => (
-            <Grid item xs={12} sm={6} md={3} key={brand}>
-              <Card
-                sx={{
-                  position: 'relative',
-                  height: 200,
-                  cursor: 'pointer',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    transition: 'transform 0.3s ease-in-out',
-                  },
-                }}
-                onClick={() => navigate('/products')}
-              >
-                <CardMedia
-                  component="img"
-                  height="200"
-                  image={`https://source.unsplash.com/random?${brand.toLowerCase()}-phone`}
-                  alt={brand}
-                  sx={{ filter: 'brightness(0.7)' }}
-                />
-                <CardContent
-                  sx={{
-                    position: 'absolute',
-                    bottom: 0,
-                    width: '100%',
-                    color: 'white',
-                    background: 'linear-gradient(to top, rgba(0,0,0,0.7), transparent)',
-                  }}
-                >
-                  <Typography variant="h6">{brand}</Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+        <Grid container spacing={3}>
+          {loading
+            ? Array.from(new Array(4)).map((_, index) => (
+                <Grid item xs={12} sm={6} md={3} key={index}>
+                  <Card>
+                    <Skeleton variant="rectangular" height={200} />
+                    <CardContent>
+                      <Skeleton variant="text" />
+                      <Skeleton variant="text" width="60%" />
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))
+            : featuredProducts.map((product) => (
+                <Grid item xs={12} sm={6} md={3} key={product._id}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => handleProductClick(product._id)}
+                  >
+                    <CardMedia
+                      component="img"
+                      height="200"
+                      image={product.image}
+                      alt={product.name}
+                      sx={{ objectFit: 'contain', p: 2 }}
+                    />
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="h6" gutterBottom noWrap>
+                        {product.name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                        <Chip
+                          label={product.brand}
+                          size="small"
+                          sx={{ backgroundColor: theme.palette.primary.light, color: 'white' }}
+                        />
+                        <Chip
+                          label={product.countInStock > 0 ? 'In Stock' : 'Out of Stock'}
+                          size="small"
+                          color={product.countInStock > 0 ? 'success' : 'error'}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Rating value={product.rating} precision={0.5} readOnly size="small" />
+                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                          ({product.numReviews})
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="h6" color="primary">
+                          ${product.price.toFixed(2)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<CartIcon />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
+                          disabled={product.countInStock === 0}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
         </Grid>
       </Container>
 
-      {/* Newsletter Section */}
-      <Box sx={{ backgroundColor: 'grey.100', py: 8 }}>
-        <Container maxWidth="lg">
-          <Box
-            sx={{
-              display: 'flex',
-              flexDirection: { xs: 'column', md: 'row' },
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: 4,
-            }}
-          >
-            <Box sx={{ maxWidth: 600 }}>
-              <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 600 }}>
-                Stay Updated
-              </Typography>
-              <Typography variant="body1" color="text.secondary" paragraph>
-                Subscribe to our newsletter to receive updates, news, and exclusive offers!
-              </Typography>
-            </Box>
-            <Button
-              variant="contained"
-              color="primary"
-              size="large"
-              onClick={() => navigate('/products')}
-              endIcon={<ArrowForwardIcon />}
-            >
-              Subscribe Now
-            </Button>
-          </Box>
-        </Container>
-      </Box>
+      {/* New Arrivals Section */}
+      <Container maxWidth="lg" sx={{ mb: 8 }}>
+        <Typography variant="h4" gutterBottom sx={{ mb: 4 }}>
+          New Arrivals
+        </Typography>
+        <Grid container spacing={3}>
+          {loading
+            ? Array.from(new Array(4)).map((_, index) => (
+                <Grid item xs={12} sm={6} md={3} key={index}>
+                  <Card>
+                    <Skeleton variant="rectangular" height={200} />
+                    <CardContent>
+                      <Skeleton variant="text" />
+                      <Skeleton variant="text" width="60%" />
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))
+            : newArrivals.map((product) => (
+                <Grid item xs={12} sm={6} md={3} key={product._id}>
+                  <Card
+                    sx={{
+                      height: '100%',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => handleProductClick(product._id)}
+                  >
+                    <CardMedia
+                      component="img"
+                      height="200"
+                      image={product.image}
+                      alt={product.name}
+                      sx={{ objectFit: 'contain', p: 2 }}
+                    />
+                    <CardContent sx={{ flexGrow: 1 }}>
+                      <Typography variant="h6" gutterBottom noWrap>
+                        {product.name}
+                      </Typography>
+                      <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                        <Chip
+                          label={product.brand}
+                          size="small"
+                          sx={{ backgroundColor: theme.palette.primary.light, color: 'white' }}
+                        />
+                        <Chip
+                          label={product.countInStock > 0 ? 'In Stock' : 'Out of Stock'}
+                          size="small"
+                          color={product.countInStock > 0 ? 'success' : 'error'}
+                        />
+                      </Box>
+                      <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                        <Rating value={product.rating} precision={0.5} readOnly size="small" />
+                        <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                          ({product.numReviews})
+                        </Typography>
+                      </Box>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="h6" color="primary">
+                          ${product.price.toFixed(2)}
+                        </Typography>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          startIcon={<CartIcon />}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleAddToCart(product);
+                          }}
+                          disabled={product.countInStock === 0}
+                        >
+                          Add
+                        </Button>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              ))}
+        </Grid>
+      </Container>
     </Box>
   );
 };

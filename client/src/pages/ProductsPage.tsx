@@ -4,372 +4,326 @@ import {
   Container,
   Grid,
   Card,
-  CardMedia,
   CardContent,
+  CardMedia,
   Typography,
-  CardActions,
   Button,
   Box,
-  TextField,
-  InputAdornment,
-  IconButton,
   Chip,
   Rating,
-  Skeleton,
-  useTheme,
-  useMediaQuery,
-  Drawer,
+  TextField,
+  InputAdornment,
   FormControl,
   InputLabel,
   Select,
   MenuItem,
-  FormControlLabel,
-  Checkbox,
-  Alert,
+  Pagination,
+  Skeleton,
+  useTheme,
+  IconButton,
+  Drawer,
+  useMediaQuery,
   Slider,
 } from '@mui/material';
 import {
   Search as SearchIcon,
-  FilterList as FilterIcon,
   ShoppingCart as CartIcon,
-  Favorite as FavoriteIcon,
-  FavoriteBorder as FavoriteBorderIcon,
+  FilterList as FilterIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { useAppDispatch, useAppSelector } from '../app/hooks';
-import { getProducts, Product } from '../features/products/productSlice';
+import { getProducts } from '../features/products/productSlice';
 import { addToCart } from '../features/cart/cartSlice';
-import { CartItem } from '../features/cart/cartSlice';
-import { getCategories } from '../features/categories/categorySlice';
+import { Product } from '../types';
+
+const ITEMS_PER_PAGE = 12;
 
 const ProductsPage: React.FC = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { products, loading, error } = useAppSelector((state) => state.products);
-  const { categories } = useAppSelector((state) => state.categories);
+  const { products, loading } = useAppSelector((state) => state.products);
+
+  const [page, setPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState('');
   const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 2000]);
-  const [showFavorites, setShowFavorites] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [sortBy, setSortBy] = useState('newest');
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
 
   useEffect(() => {
     dispatch(getProducts());
-    dispatch(getCategories());
   }, [dispatch]);
 
-  const handleAddToCart = (product: Product) => {
-    const cartItem: CartItem = {
-      _id: product._id,
-      name: product.name,
-      price: product.price,
-      image: product.image,
-      quantity: 1,
-    };
-    dispatch(addToCart(cartItem));
+  const handleAddToCart = (product: any) => {
+    dispatch(addToCart({ ...product, quantity: 1 }));
   };
 
-  const toggleFavorite = (productId: string) => {
-    setFavorites(prev => 
-      prev.includes(productId)
-        ? prev.filter(id => id !== productId)
-        : [...prev, productId]
-    );
+  const handleProductClick = (id: string) => {
+    navigate(`/product/${id}`);
   };
 
-  const handleProductClick = (productId: string) => {
-    navigate(`/products/${productId}`);
-  };
+  // Get unique brands and categories
+  const brands = Array.from(new Set(products.map((product) => product.brand)));
+  const categories = Array.from(new Set(products.map((product) => product.category.name)));
 
-  const handlePriceRangeChange = (_event: Event, newValue: number | number[]) => {
-    setPriceRange(newValue as [number, number]);
-  };
-
+  // Filter and sort products
   const filteredProducts = products
-    .filter(product => 
-      product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      product.description.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .filter(product => 
-      product.price >= priceRange[0] && product.price <= priceRange[1]
-    )
-    .filter(product => 
-      !showFavorites || favorites.includes(product._id)
-    )
-    .filter(product => 
-      selectedCategory === 'all' || product.category._id === selectedCategory
-    )
+    .filter((product) => {
+      const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.brand.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        product.category.name.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesBrand = selectedBrands.length === 0 || selectedBrands.includes(product.brand);
+      const matchesCategory = selectedCategories.length === 0 || selectedCategories.includes(product.category.name);
+      const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
+      return matchesSearch && matchesBrand && matchesCategory && matchesPrice;
+    })
     .sort((a, b) => {
       switch (sortBy) {
-        case 'price-low':
+        case 'price-asc':
           return a.price - b.price;
-        case 'price-high':
+        case 'price-desc':
           return b.price - a.price;
-        case 'name':
-          return a.name.localeCompare(b.name);
-        case 'newest':
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        case 'rating-desc':
+          return b.rating - a.rating;
         default:
           return 0;
       }
     });
 
-  const renderFilters = () => (
-    <Box sx={{ p: 3, width: isMobile ? '100%' : 280 }}>
-      <Typography variant="h6" gutterBottom>
-        Filters
-      </Typography>
-      <Box sx={{ mt: 2 }}>
-        <Typography gutterBottom>Price Range</Typography>
+  const totalPages = Math.ceil(filteredProducts.length / ITEMS_PER_PAGE);
+  const displayedProducts = filteredProducts.slice(
+    (page - 1) * ITEMS_PER_PAGE,
+    page * ITEMS_PER_PAGE
+  );
+
+  const FilterDrawer = () => (
+    <Drawer
+      anchor="right"
+      open={filterDrawerOpen}
+      onClose={() => setFilterDrawerOpen(false)}
+      PaperProps={{
+        sx: { width: { xs: '100%', sm: 400 }, p: 3 },
+      }}
+    >
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+        <Typography variant="h6">Filters</Typography>
+        <IconButton onClick={() => setFilterDrawerOpen(false)}>
+          <CloseIcon />
+        </IconButton>
+      </Box>
+
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Price Range
+        </Typography>
         <Slider
           value={priceRange}
-          onChange={handlePriceRangeChange}
+          onChange={(_, newValue) => setPriceRange(newValue as [number, number])}
           valueLabelDisplay="auto"
           min={0}
           max={2000}
           sx={{ mt: 2 }}
         />
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-          <Typography variant="body2">${priceRange[0]}</Typography>
-          <Typography variant="body2">${priceRange[1]}</Typography>
+          <Typography variant="body2" color="text.secondary">
+            ${priceRange[0]}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            ${priceRange[1]}
+          </Typography>
         </Box>
       </Box>
-      <Box sx={{ mt: 3 }}>
-        <FormControlLabel
-          control={
-            <Checkbox
-              checked={showFavorites}
-              onChange={(e) => setShowFavorites(e.target.checked)}
+
+      <Box sx={{ mb: 4 }}>
+        <Typography variant="subtitle1" gutterBottom>
+          Brands
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {brands.map((brand) => (
+            <Chip
+              key={brand}
+              label={brand}
+              onClick={() => {
+                setSelectedBrands((prev) =>
+                  prev.includes(brand)
+                    ? prev.filter((b) => b !== brand)
+                    : [...prev, brand]
+                );
+              }}
+              color={selectedBrands.includes(brand) ? 'primary' : 'default'}
             />
-          }
-          label="Show Favorites Only"
-        />
+          ))}
+        </Box>
       </Box>
-      <Box sx={{ mt: 3 }}>
-        <FormControl fullWidth>
-          <InputLabel>Category</InputLabel>
-          <Select
-            value={selectedCategory}
-            label="Category"
-            onChange={(e) => setSelectedCategory(e.target.value)}
-          >
-            <MenuItem value="all">All Categories</MenuItem>
-            {categories.map((category) => (
-              <MenuItem key={category._id} value={category._id}>
-                {category.name}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+
+      <Box>
+        <Typography variant="subtitle1" gutterBottom>
+          Categories
+        </Typography>
+        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+          {categories.map((category) => (
+            <Chip
+              key={category}
+              label={category}
+              onClick={() => {
+                setSelectedCategories((prev) =>
+                  prev.includes(category)
+                    ? prev.filter((c) => c !== category)
+                    : [...prev, category]
+                );
+              }}
+              color={selectedCategories.includes(category) ? 'primary' : 'default'}
+            />
+          ))}
+        </Box>
       </Box>
-      <Box sx={{ mt: 3 }}>
-        <FormControl fullWidth>
-          <InputLabel>Sort By</InputLabel>
-          <Select
-            value={sortBy}
-            label="Sort By"
-            onChange={(e) => setSortBy(e.target.value)}
-          >
-            <MenuItem value="newest">Newest</MenuItem>
-            <MenuItem value="price-low">Price: Low to High</MenuItem>
-            <MenuItem value="price-high">Price: High to Low</MenuItem>
-            <MenuItem value="name">Name</MenuItem>
-          </Select>
-        </FormControl>
-      </Box>
-    </Box>
+    </Drawer>
   );
 
-  if (error) {
-    return (
-      <Container maxWidth="lg" sx={{ mt: 4 }}>
-        <Alert severity="error">{error}</Alert>
-      </Container>
-    );
-  }
-
   return (
-    <Container maxWidth="lg" sx={{ mt: 4, mb: 8 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: 600 }}>
-          Our Products
-        </Typography>
-        <Box sx={{ display: 'flex', gap: 2 }}>
-          <TextField
-            placeholder="Search products..."
-            size="small"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            InputProps={{
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon color="action" />
-                </InputAdornment>
-              ),
-            }}
-            sx={{ width: { xs: 150, sm: 200, md: 250 } }}
-          />
-          <IconButton
-            color="primary"
-            onClick={() => setFilterDrawerOpen(true)}
-            sx={{ display: { xs: 'flex', md: 'none' } }}
-          >
-            <FilterIcon />
-          </IconButton>
-        </Box>
-      </Box>
-
-      <Box sx={{ display: 'flex', gap: 3 }}>
-        {!isMobile && (
-          <Box sx={{ width: 280, flexShrink: 0 }}>
-            {renderFilters()}
-          </Box>
-        )}
-
-        <Box sx={{ flexGrow: 1 }}>
-          <Grid container spacing={3}>
-            {loading
-              ? Array.from(new Array(6)).map((_, index) => (
-                  <Grid item xs={12} sm={6} md={4} key={index}>
-                    <Card>
-                      <Skeleton variant="rectangular" height={200} />
-                      <CardContent>
-                        <Skeleton variant="text" />
-                        <Skeleton variant="text" width="60%" />
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                ))
-              : filteredProducts.map((product) => (
-                  <Grid item xs={12} sm={6} md={4} key={product._id}>
-                    <Card
-                      sx={{
-                        height: '100%',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        position: 'relative',
-                      }}
-                    >
-                      <IconButton
-                        onClick={() => toggleFavorite(product._id)}
-                        sx={{
-                          position: 'absolute',
-                          top: 8,
-                          right: 8,
-                          backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                          '&:hover': {
-                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                          },
-                        }}
-                      >
-                        {favorites.includes(product._id) ? (
-                          <FavoriteIcon color="error" />
-                        ) : (
-                          <FavoriteBorderIcon />
-                        )}
-                      </IconButton>
-                      <CardMedia
-                        component="img"
-                        height="200"
-                        image={product.image}
-                        alt={product.name}
-                        sx={{ objectFit: 'contain', p: 2 }}
-                      />
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Typography gutterBottom variant="h6" component="h2">
-                          {product.name}
-                        </Typography>
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                            mb: 2,
-                          }}
-                        >
-                          {product.description}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-                          <Rating value={4.5} precision={0.5} size="small" readOnly />
-                          <Typography variant="body2" color="text.secondary">
-                            (4.5)
-                          </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip
-                            label={product.brand}
-                            size="small"
-                            sx={{ backgroundColor: 'primary.light', color: 'primary.main' }}
-                          />
-                          {product.countInStock > 0 ? (
-                            <Chip
-                              label="In Stock"
-                              size="small"
-                              sx={{ backgroundColor: 'success.light', color: 'success.dark' }}
-                            />
-                          ) : (
-                            <Chip
-                              label="Out of Stock"
-                              size="small"
-                              sx={{ backgroundColor: 'error.light', color: 'error.dark' }}
-                            />
-                          )}
-                        </Box>
-                        <Typography
-                          variant="h6"
-                          color="primary"
-                          sx={{ mt: 2, fontWeight: 600 }}
-                        >
-                          ${product.price.toFixed(2)}
-                        </Typography>
-                      </CardContent>
-                      <CardActions sx={{ p: 2, pt: 0 }}>
-                        <Button
-                          size="small"
-                          onClick={() => handleProductClick(product._id)}
-                          sx={{ mr: 1 }}
-                        >
-                          View Details
-                        </Button>
-                        <Button
-                          size="small"
-                          variant="contained"
-                          startIcon={<CartIcon />}
-                          onClick={() => handleAddToCart(product)}
-                          disabled={product.countInStock === 0}
-                          sx={{ ml: 'auto' }}
-                        >
-                          Add to Cart
-                        </Button>
-                      </CardActions>
-                    </Card>
-                  </Grid>
-                ))}
+    <Container maxWidth="xl" sx={{ py: 4 }}>
+      <Box sx={{ mb: 4 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              variant="outlined"
+              placeholder="Search products..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <SearchIcon />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Grid>
-        </Box>
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <FormControl fullWidth>
+                <InputLabel>Sort By</InputLabel>
+                <Select
+                  value={sortBy}
+                  label="Sort By"
+                  onChange={(e) => setSortBy(e.target.value)}
+                >
+                  <MenuItem value="">None</MenuItem>
+                  <MenuItem value="price-asc">Price: Low to High</MenuItem>
+                  <MenuItem value="price-desc">Price: High to Low</MenuItem>
+                  <MenuItem value="rating-desc">Highest Rated</MenuItem>
+                </Select>
+              </FormControl>
+              <Button
+                variant="outlined"
+                startIcon={<FilterIcon />}
+                onClick={() => setFilterDrawerOpen(true)}
+                sx={{ minWidth: 120 }}
+              >
+                Filters
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
       </Box>
 
-      <Drawer
-        anchor={isMobile ? 'bottom' : 'right'}
-        open={filterDrawerOpen}
-        onClose={() => setFilterDrawerOpen(false)}
-        PaperProps={{
-          sx: {
-            width: isMobile ? '100%' : 280,
-            borderTopLeftRadius: isMobile ? 16 : 0,
-            borderTopRightRadius: isMobile ? 16 : 0,
-          },
-        }}
-      >
-        {renderFilters()}
-      </Drawer>
+      <Grid container spacing={3}>
+        {loading
+          ? Array.from(new Array(ITEMS_PER_PAGE)).map((_, index) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={index}>
+                <Card>
+                  <Skeleton variant="rectangular" height={200} />
+                  <CardContent>
+                    <Skeleton variant="text" />
+                    <Skeleton variant="text" width="60%" />
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))
+          : displayedProducts.map((product) => (
+              <Grid item xs={12} sm={6} md={4} lg={3} key={product._id}>
+                <Card
+                  sx={{
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    cursor: 'pointer',
+                    transition: 'transform 0.2s ease-in-out',
+                    '&:hover': {
+                      transform: 'translateY(-4px)',
+                    },
+                  }}
+                  onClick={() => handleProductClick(product._id)}
+                >
+                  <CardMedia
+                    component="img"
+                    height="200"
+                    image={product.image}
+                    alt={product.name}
+                    sx={{ objectFit: 'contain', p: 2 }}
+                  />
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" gutterBottom noWrap>
+                      {product.name}
+                    </Typography>
+                    <Box sx={{ display: 'flex', gap: 1, mb: 1 }}>
+                      <Chip
+                        label={product.brand}
+                        size="small"
+                        sx={{ backgroundColor: theme.palette.primary.light, color: 'white' }}
+                      />
+                      <Chip
+                        label={product.countInStock > 0 ? 'In Stock' : 'Out of Stock'}
+                        size="small"
+                        color={product.countInStock > 0 ? 'success' : 'error'}
+                      />
+                    </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                      <Rating value={product.rating} precision={0.5} readOnly size="small" />
+                      <Typography variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                        ({product.numReviews})
+                      </Typography>
+                    </Box>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <Typography variant="h6" color="primary">
+                        ${product.price.toFixed(2)}
+                      </Typography>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={<CartIcon />}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleAddToCart(product);
+                        }}
+                        disabled={product.countInStock === 0}
+                      >
+                        Add
+                      </Button>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+      </Grid>
+
+      {totalPages > 1 && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={(_, value) => setPage(value)}
+            color="primary"
+            size={isMobile ? 'small' : 'medium'}
+          />
+        </Box>
+      )}
+
+      <FilterDrawer />
     </Container>
   );
 };
