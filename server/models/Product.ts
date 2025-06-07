@@ -6,6 +6,11 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+    },
     description: {
       type: String,
       required: true,
@@ -64,6 +69,14 @@ productSchema.index({
   description: 'text',
   brand: 'text',
   'category.name': 'text',
+});
+
+// Create slug before saving
+productSchema.pre('save', function(next) {
+  if (this.isModified('name')) {
+    this.slug = this.name.toLowerCase().replace(/[^a-zA-Z0-9]/g, '-');
+  }
+  next();
 });
 
 const Product = mongoose.model('Product', productSchema);
