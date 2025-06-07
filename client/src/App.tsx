@@ -13,6 +13,7 @@ import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import ProductPage from './pages/ProductPage';
+import ProductsPage from './pages/ProductsPage';
 import CartPage from './pages/CartPage';
 import AdminPage from './pages/AdminPage';
 import ProfilePage from './pages/ProfilePage';
@@ -20,7 +21,7 @@ import CheckoutPage from './pages/CheckoutPage';
 import OrderPage from './pages/OrderPage';
 import OrderHistoryPage from './pages/OrderHistoryPage';
 import ProtectedRoute from './components/ProtectedRoute';
-import { Box, CircularProgress } from '@mui/material';
+import { Box } from '@mui/material';
 import { useAppDispatch } from './app/hooks';
 
 // Separate component to use hooks
@@ -39,11 +40,12 @@ const AppContent = () => {
 
   return (
     <Router>
-      <div className="flex flex-col min-h-screen">
+      <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
         <Header />
-        <main className="flex-grow container mx-auto px-4 py-8">
+        <Box component="main" sx={{ flexGrow: 1, py: 4 }}>
           <Routes>
             <Route path="/" element={<HomePage />} />
+            <Route path="/products" element={<ProductsPage />} />
             <Route path="/login" element={<LoginPage />} />
             <Route path="/register" element={<RegisterPage />} />
             <Route path="/product/:id" element={<ProductPage />} />
@@ -96,9 +98,9 @@ const AppContent = () => {
               }
             />
           </Routes>
-        </main>
+        </Box>
         <Footer />
-      </div>
+      </Box>
     </Router>
   );
 };
