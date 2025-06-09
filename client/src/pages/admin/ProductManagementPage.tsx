@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import {
   Container,
   Typography,
@@ -26,12 +27,14 @@ import {
   InputAdornment,
   Chip,
   Stack,
+  Snackbar,
 } from '@mui/material';
 import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Add as AddIcon,
   Image as ImageIcon,
+  CloudUpload as CloudUploadIcon,
   LocalOffer as LocalOfferIcon,
   Inventory as InventoryIcon,
   Category as CategoryIcon,
@@ -70,6 +73,14 @@ const ProductManagementPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [sortBy, setSortBy] = useState<string>('');
+  
+  // States cho file upload
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>('');
+  const [uploadLoading, setUploadLoading] = useState(false);
+  const [openError, setOpenError] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  
   const [formData, setFormData] = useState<ProductFormData>({
     name: '',
     description: '',
@@ -81,6 +92,71 @@ const ProductManagementPage: React.FC = () => {
     image: '',
     soldCount: 0,
   });
+
+  // Function upload to Pinata
+  const uploadToPinata = async (file: File): Promise<string> => {
+    if (!file) {
+      throw new Error('No file provided');
+    }
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await axios({
+        method: "post",
+        url: "https://api.pinata.cloud/pinning/pinFileToIPFS",
+        data: formData,
+        headers: {
+          pinata_api_key: `5b9afb41a6a64bcad1f7`,
+          pinata_secret_api_key: `080a3e13f1c8a9527e3ff8faaeb9871b5df53900099d88edba2259f98be701ec`,
+          "Content-Type": "multipart/form-data",
+        }
+      });
+
+      if (!response.data?.IpfsHash) {
+        throw new Error('No IPFS hash returned from Pinata');
+      }
+
+      const ImgHash = `https://gateway.pinata.cloud/ipfs/${response.data.IpfsHash}`;
+      console.log("Image successfully uploaded to Pinata:", ImgHash);
+      return ImgHash;
+    } catch (error: any) {
+      console.error("Pinata upload error:", error.response?.data || error.message);
+      setErrorMessage("Unable to upload image to Pinata");
+      setOpenError(true);
+      throw error;
+    }
+  };
+
+  // Handle file selection
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        setErrorMessage('Vui lòng chọn file ảnh hợp lệ');
+        setOpenError(true);
+        return;
+      }
+
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setErrorMessage('Kích thước file không được vượt quá 5MB');
+        setOpenError(true);
+        return;
+      }
+
+      setSelectedFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   useEffect(() => {
     dispatch(getProducts());
@@ -125,6 +201,8 @@ const ProductManagementPage: React.FC = () => {
   const handleClickOpen = () => {
     setOpen(true);
     setIsEdit(false);
+    setSelectedFile(null);
+    setImagePreview('');
     setFormData({
       name: '',
       description: '',
@@ -146,6 +224,8 @@ const ProductManagementPage: React.FC = () => {
   const handleEdit = (product: Product) => {
     setIsEdit(true);
     setSelectedProduct(product);
+    setSelectedFile(null);
+    setImagePreview(product.image);
     setFormData({
       name: product.name,
       description: product.description,
@@ -173,44 +253,69 @@ const ProductManagementPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate numeric fields
-    if (formData.price < 0) {
-      alert('Price cannot be negative');
-      return;
-    }
-
-    if (formData.countInStock < 0) {
-      alert('Stock cannot be negative');
-      return;
-    }
-
-    // Find the selected category object
-    const selectedCategory = categories.find(cat => cat._id === formData.category);
-    if (!selectedCategory) {
-      alert('Please select a valid category');
-      return;
-    }
-
-    const productData: Partial<Product> = {
-      ...formData,
-      category: {
-        _id: selectedCategory._id,
-        name: selectedCategory.name,
-        slug: selectedCategory.name.toLowerCase().replace(/\s+/g, '-')
-      }
-    };
+    setUploadLoading(true);
 
     try {
+      // Validate numeric fields
+      if (formData.price < 0) {
+        alert('Price cannot be negative');
+        return;
+      }
+
+      if (formData.countInStock < 0) {
+        alert('Stock cannot be negative');
+        return;
+      }
+
+      // Find the selected category object
+      const selectedCategory = categories.find(cat => cat._id === formData.category);
+      if (!selectedCategory) {
+        alert('Please select a valid category');
+        return;
+      }
+
+      let imageUrl = formData.image;
+
+      // Upload new image if selected
+      if (selectedFile) {
+        try {
+          imageUrl = await uploadToPinata(selectedFile);
+        } catch (error) {
+          console.error('Failed to upload image:', error);
+          setUploadLoading(false);
+          return;
+        }
+      }
+
+      // Validate image URL
+      if (!imageUrl) {
+        alert('Vui lòng chọn ảnh sản phẩm');
+        setUploadLoading(false);
+        return;
+      }
+
+      const productData: Partial<Product> = {
+        ...formData,
+        image: imageUrl,
+        category: {
+          _id: selectedCategory._id,
+          name: selectedCategory.name,
+          slug: selectedCategory.name.toLowerCase().replace(/\s+/g, '-')
+        }
+      };
+
       if (isEdit && selectedProduct) {
         await dispatch(updateProduct({ id: selectedProduct._id, productData })).unwrap();
       } else {
         await dispatch(createProduct(productData)).unwrap();
       }
+      
       handleClose();
       dispatch(getProducts());
     } catch (error: any) {
       alert(error.message || 'Failed to save product');
+    } finally {
+      setUploadLoading(false);
     }
   };
 
@@ -488,16 +593,62 @@ const ProductManagementPage: React.FC = () => {
                 </FormControl>
               </Grid>
             </Grid>
-            <TextField
-              margin="dense"
-              name="image"
-              label="Image URL"
-              type="text"
-              fullWidth
-              value={formData.image}
-              onChange={handleInputChange}
-              sx={{ mb: 2 }}
-            />
+            {/* Image Upload Section */}
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="subtitle2" gutterBottom>
+                Ảnh sản phẩm
+              </Typography>
+              
+              {/* Image Preview */}
+              {(imagePreview || formData.image) && (
+                <Box sx={{ mb: 2, textAlign: 'center' }}>
+                  <img
+                    src={imagePreview || formData.image}
+                    alt="Preview"
+                    style={{
+                      maxWidth: '200px',
+                      maxHeight: '200px',
+                      objectFit: 'contain',
+                      border: '1px solid #ddd',
+                      borderRadius: '8px',
+                      padding: '8px'
+                    }}
+                  />
+                </Box>
+              )}
+
+              {/* File Upload Button */}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<CloudUploadIcon />}
+                  disabled={uploadLoading}
+                >
+                  {selectedFile ? 'Đổi ảnh' : 'Chọn ảnh'}
+                  <input
+                    type="file"
+                    hidden
+                    accept="image/*"
+                    onChange={handleFileSelect}
+                  />
+                </Button>
+                
+                {selectedFile && (
+                  <Typography variant="body2" color="text.secondary">
+                    {selectedFile.name}
+                  </Typography>
+                )}
+                
+                {uploadLoading && (
+                  <CircularProgress size={20} />
+                )}
+              </Box>
+              
+              <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                Chọn file ảnh (JPEG, PNG, GIF). Tối đa 5MB.
+              </Typography>
+            </Box>
             <FormControlLabel
               control={
                 <Checkbox
@@ -514,15 +665,32 @@ const ProductManagementPage: React.FC = () => {
             />
           </DialogContent>
           <DialogActions sx={{ p: 2 }}>
-            <Button onClick={handleClose} color="inherit">
+            <Button onClick={handleClose} color="inherit" disabled={uploadLoading}>
               Cancel
             </Button>
-            <Button type="submit" variant="contained" color="primary">
-              {isEdit ? 'Update' : 'Create'}
+            <Button 
+              type="submit" 
+              variant="contained" 
+              color="primary"
+              disabled={uploadLoading}
+              startIcon={uploadLoading ? <CircularProgress size={16} /> : null}
+            >
+              {uploadLoading ? 'Đang tải...' : (isEdit ? 'Cập nhật' : 'Tạo mới')}
             </Button>
           </DialogActions>
         </form>
       </Dialog>
+
+      {/* Error Snackbar */}
+      <Snackbar
+        open={openError}
+        autoHideDuration={6000}
+        onClose={() => setOpenError(false)}
+      >
+        <Alert onClose={() => setOpenError(false)} severity="error" sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
     </Container>
   );
 };

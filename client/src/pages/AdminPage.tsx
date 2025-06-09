@@ -1,25 +1,23 @@
 import React from 'react';
-import { Routes, Route, useLocation } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import CategoryManagementPage from './admin/CategoryManagementPage';
 import ProductManagementPage from './admin/ProductManagementPage';
-import AdminDashboard from './admin/AdminDashboard';
-import { Box, Container } from '@mui/material';
+import UserManagementPage from './admin/UserManagementPage';
+import OrderManagementPage from './admin/OrderManagementPage';
+import ReviewManagementPage from './admin/ReviewManagementPage';
+import DashboardPage from './admin/DashboardPage';
 
 const AdminPage: React.FC = () => {
-  const location = useLocation();
-  const isRootPath = location.pathname === '/admin';
-
   return (
-    <Container maxWidth="xl" sx={{ py: 4 }}>
-      <Box sx={{ minHeight: '80vh' }}>
-        <Routes>
-          <Route index element={<AdminDashboard />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="categories" element={<CategoryManagementPage />} />
-          <Route path="products" element={<ProductManagementPage />} />
-        </Routes>
-      </Box>
-    </Container>
+    <Routes>
+      <Route index element={<DashboardPage />} />
+      <Route path="dashboard" element={<DashboardPage />} />
+      <Route path="products" element={<ProductManagementPage />} />
+      <Route path="categories" element={<CategoryManagementPage />} />
+      <Route path="users" element={<UserManagementPage />} />
+      <Route path="orders" element={<OrderManagementPage />} />
+      <Route path="reviews" element={<ReviewManagementPage />} />
+    </Routes>
   );
 };
 

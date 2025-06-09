@@ -63,13 +63,8 @@ const Header: React.FC = () => {
   };
 
   const menuItems = [
-    { text: 'Home', icon: <HomeIcon />, path: '/' },
-    { text: 'Products', icon: <PhoneIcon />, path: '/products' },
-    ...(user?.role === 'admin' ? [
-      { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin/dashboard' },
-      { text: 'Categories', icon: <CategoryIcon />, path: '/admin/categories' },
-      { text: 'Products', icon: <ProductIcon />, path: '/admin/products' },
-    ] : []),
+    { text: 'Trang chủ', icon: <HomeIcon />, path: '/' },
+    { text: 'Sản phẩm', icon: <PhoneIcon />, path: '/products' },
   ];
 
   const renderMobileMenu = () => (
@@ -116,13 +111,21 @@ const Header: React.FC = () => {
         <ListItemIcon>
           <PersonIcon fontSize="small" />
         </ListItemIcon>
-        Profile
+        Hồ sơ
       </MenuItem>
+      {user?.role === 'admin' && (
+        <MenuItem onClick={() => { handleClose(); navigate('/admin/dashboard'); }}>
+          <ListItemIcon>
+            <DashboardIcon fontSize="small" />
+          </ListItemIcon>
+          Quản trị
+        </MenuItem>
+      )}
       <MenuItem onClick={() => { handleClose(); handleLogout(); }}>
         <ListItemIcon>
           <LogoutIcon fontSize="small" />
         </ListItemIcon>
-        Logout
+        Đăng xuất
       </MenuItem>
     </Menu>
   );
@@ -221,7 +224,7 @@ const Header: React.FC = () => {
                 variant="outlined"
                 sx={{ mr: 1 }}
               >
-                Login
+                Đăng nhập
               </Button>
               <Button
                 color="primary"
@@ -229,7 +232,7 @@ const Header: React.FC = () => {
                 to="/register"
                 variant="contained"
               >
-                Register
+                Đăng ký
               </Button>
             </Box>
           )}

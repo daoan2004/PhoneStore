@@ -59,8 +59,10 @@ const RegisterPage: React.FC = () => {
     }
 
     try {
-      await dispatch(register(formData)).unwrap();
-      navigate('/');
+      const result = await dispatch(register(formData)).unwrap();
+      // Redirect admin to admin dashboard, regular users to home
+      const redirectPath = result.user.role === 'admin' ? '/admin/dashboard' : '/';
+      navigate(redirectPath);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Registration failed');
     }

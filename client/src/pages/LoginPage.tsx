@@ -36,7 +36,9 @@ const LoginPage: React.FC = () => {
 
   useEffect(() => {
     if (user && token) {
-      navigate('/', { replace: true });
+      // Redirect admin to admin dashboard, regular users to home
+      const redirectPath = user.role === 'admin' ? '/admin/dashboard' : '/';
+      navigate(redirectPath, { replace: true });
     }
   }, [user, token, navigate]);
 
